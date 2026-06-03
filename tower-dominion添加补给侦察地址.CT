@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="utf-8"?>
+<CheatTable CheatEngineTableVersion="45">
+  <CheatEntries>
+    <CheatEntry>
+      <ID>0</ID>
+      <Description>"补给0"</Description>
+      <VariableType>Float</VariableType>
+      <Address>28D56569DF0</Address>
+    </CheatEntry>
+    <CheatEntry>
+      <ID>1</ID>
+      <Description>"补给1"</Description>
+      <VariableType>Float</VariableType>
+      <Address>28D56569E50</Address>
+    </CheatEntry>
+    <CheatEntry>
+      <ID>2</ID>
+      <Description>"侦察0"</Description>
+      <VariableType>Float</VariableType>
+      <Address>28D56569F40</Address>
+    </CheatEntry>
+    <CheatEntry>
+      <ID>3</ID>
+      <Description>"侦察1"</Description>
+      <VariableType>Float</VariableType>
+      <Address>28D56569FA0</Address>
+    </CheatEntry>
+  </CheatEntries>
+  <UserdefinedSymbols/>
+  <LuaScript>-- 配置你的游戏进程名
+local exe = "tower-dominion.exe"
+local pid = getProcessIDFromProcessName(exe)
+if not pid then print("未启动") return end
+-- 附加进程（没有附加就自动附加）
+if getOpenedProcessID()~=pid then openProcess(pid) end
+
+
+-- 参数：普通英文ASCII，返回 "44 00 69 00 ..." 小头Utf16LE格式字符串
+local function AsciiToUtf16LE(s)
+    local out = {}
+    for i=1,#s do
+        table.insert(out,string.format("%02X 00",s:byte(i)))
+    end
+    return table.concat(out," ")
+end
+
+local function PrintBytes(t)
+    local s=""
+    for _,v in ipairs(t) do s=s..("%02X "):format(v) end
+    print(s:sub(1,-2))
+end
+--PrintBytes(bytes) -- 53 00 65 00 6C 00 65 00 63 00 74 00 65 00 64 00
+
+local function Utf16LEToBytes(aob)
+    return load("return{"..aob:gsub("%x+","0x%1,"):sub(1,-2).."}")()
+end
+
+local arrStr={"Selected", "Pressed", "Normal"}
+local arrOff = {3*8*8, 3*8*10, 3*8*12}
+local index = 1
+local sigDisabled = AsciiToUtf16LE("Disabled")
+local sigSelected = AsciiToUtf16LE(arrStr[index])
+-- Disabled特征： 44 00 69 00 73 00 61 00 62 00 6C 00 65 00 64 00
+-- Selected特征： 53 00 65 00 6C 00 65 00 63 00 74 00 65 00 64 00
+local bytes = Utf16LEToBytes(sigSelected)
+print("-------------------")
+
+local listDisabled = AOBScan(sigDisabled,"+W-X")
+
+if listDisabled == nil or listDisabled.Count == 0 then
+    print("未搜到任何Disabled")
+    return
+end
+
+for i = 0, listDisabled.Count - 1 do
+    local disabledAddr = tonumber(listDisabled[i],16)
+    local selCheckAddr = disabledAddr + arrOff[index]
+    -- 从selCheckAddr读16字节，对比Selected特征
+    local buf = readBytes(selCheckAddr, #arrStr[index]*2, true)
+    local find = true
+    for b=1,#bytes do    --字节比较
+        if buf[b] ~= bytes[b] then
+            find = false
+            break
+        end
+    end
+
+    if find == true then
+       print(string.format("找到符合Selected的Disabled地址:0x%X",disabledAddr))
+       local baseAddr = disabledAddr -4
+       local readAddr = baseAddr + 2*3*8
+       local floatData = readFloat(readAddr)
+       local readAddr1 = baseAddr + 6*3*8
+       local floatData1 = readFloat(readAddr1)
+       local baseStr = string.format("0x%X",disabledAddr)
+       if floatData == floatData1 and floatData &gt; 1 then
+          print(string.format("浮点读取地址1:0x%X，地址2:0x%X",readAddr,readAddr1))
+          print(string.format("偏移浮点：%f %f",floatData,floatData1))
+--1. 清空整张地址列表（一行清空所有条目，含分组、脚本）
+          local al = getAddressList()
+          while al.Count &gt; 0 do al[0]:destroy() end
+          --添加到CE地址列表，备注来源
+          local cfg={
+              {name="补给0",addr=2},
+              {name="补给1",addr=6},
+              {name="侦察0",addr=16},
+              {name="侦察1",addr=20},
+          }
+          for _,v in ipairs(cfg)do
+              local r=AddressList:createMemoryRecord()
+              r.Description=v.name
+              r.Address=v.addr*3*8 + baseAddr
+              r.Type=4
+          end
+       end
+    end
+end
+print("==================1=")
+
+--[[
+-------------------
+找到符合Selected的Disabled地址:0x28C4D19A044
+找到符合Selected的Disabled地址:0x28D56268944
+找到符合Selected的Disabled地址:0x28D56569DC4
+偏移0x2C浮点：200.000000 200.000000
+找到符合Selected的Disabled地址:0x28D5663FDC4
+找到符合Selected的Disabled地址:0x28D56D3A314
+找到符合Selected的Disabled地址:0x28D56E3B974
+找到符合Selected的Disabled地址:0x28D56FA6044
+找到符合Selected的Disabled地址:0x28D57021BE4
+找到符合Selected的Disabled地址:0x28D57208A94
+找到符合Selected的Disabled地址:0x28D5873C704
+找到符合Selected的Disabled地址:0x28D58766D34
+===================
+]]
+
+
+</LuaScript>
+</CheatTable>
