@@ -4,16 +4,22 @@
     <CheatEntry>
       <ID>0</ID>
       <Description>"补给0"</Description>
-      <LastState Value="800" RealAddress="28CD148F2B0"/>
+      <LastState Value="9999.600586" RealAddress="28CD148F2B0"/>
       <VariableType>Float</VariableType>
       <Address>28CD148F2B0</Address>
     </CheatEntry>
     <CheatEntry>
       <ID>1</ID>
       <Description>"侦察0"</Description>
-      <LastState Value="25" RealAddress="28CD148F400"/>
+      <LastState Value="1004" RealAddress="28CD148F400"/>
       <VariableType>Float</VariableType>
       <Address>28CD148F400</Address>
+    </CheatEntry>
+    <CheatEntry>
+      <ID>2</ID>
+      <Description>"【一键补满补给】"</Description>
+      <VariableType>Float</VariableType>
+      <Address>0x10101010</Address>
     </CheatEntry>
   </CheatEntries>
   <UserdefinedSymbols/>
@@ -54,9 +60,9 @@ local function AddAddr(checkAdd)
       --添加到CE地址列表，备注来源
       local cfg={
           {name="补给0",addr=0},
---          {name="补给1",addr=4},
+          {name="补给1",addr=4},
           {name="侦察0",addr=14},
---          {name="侦察1",addr=18},
+          {name="侦察1",addr=18},
       }
       for _,v in ipairs(cfg)do
           local r=AddressList:createMemoryRecord()
@@ -64,7 +70,23 @@ local function AddAddr(checkAdd)
           r.Address=v.addr*3*8 + checkAdd
           r.Type=4
       end
-      return
+--============================一键补给按钮新增开始============================
+      local btn = al:createMemoryRecord()
+      btn.Description = "【一键补满补给和侦察】"
+      btn.Address = "0x100"
+      btn.Type = 4
+      btn.OnActivate = function(self,before,newstate)
+          if before then
+              local base = checkAdd
+              writeFloat(base,9999.0)
+              writeFloat(base + 4*3*8,9999.0)
+              writeFloat(base + 14*3*8,999.0)
+              writeFloat(base + 18*3*8,999.0)
+              print("补给写入成功")
+              self.Active=false
+          end
+      end
+--============================一键补给按钮新增结束============================     return
 end
 
 local function HexSplit4(num)
