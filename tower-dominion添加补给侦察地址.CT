@@ -4,33 +4,30 @@
     <CheatEntry>
       <ID>0</ID>
       <Description>"补给0"</Description>
+      <LastState Value="800" RealAddress="28CD148F2B0"/>
       <VariableType>Float</VariableType>
-      <Address>21D5E1ECDC0</Address>
+      <Address>28CD148F2B0</Address>
     </CheatEntry>
     <CheatEntry>
       <ID>1</ID>
-      <Description>"补给1"</Description>
-      <VariableType>Float</VariableType>
-      <Address>21D5E1ECE20</Address>
-    </CheatEntry>
-    <CheatEntry>
-      <ID>2</ID>
       <Description>"侦察0"</Description>
+      <LastState Value="25" RealAddress="28CD148F400"/>
       <VariableType>Float</VariableType>
-      <Address>21D5E1ECF10</Address>
-    </CheatEntry>
-    <CheatEntry>
-      <ID>3</ID>
-      <Description>"侦察1"</Description>
-      <VariableType>Float</VariableType>
-      <Address>21D5E1ECF70</Address>
+      <Address>28CD148F400</Address>
     </CheatEntry>
   </CheatEntries>
   <UserdefinedSymbols/>
   <LuaScript>-- tower-dominion-CE
+print("-----------START----------")
 local exe = "tower-dominion.exe"
+--::BEGIN::
 local pid = getProcessIDFromProcessName(exe)
-if not pid then print("未启动") return end
+if not pid then
+    print("游戏未启动")
+--    messageDialog("错误","未检测到游戏进程，脚本即将关闭CE！",mtInformation,mbOK)
+--    closeCE() --直接退出CE
+    return
+end
 -- 关联进程（没有关联就自动关联）
 if getOpenedProcessID()~=pid then openProcess(pid) end
 
@@ -57,9 +54,9 @@ local function AddAddr(checkAdd)
       --添加到CE地址列表，备注来源
       local cfg={
           {name="补给0",addr=0},
-          {name="补给1",addr=4},
+--          {name="补给1",addr=4},
           {name="侦察0",addr=14},
-          {name="侦察1",addr=18},
+--          {name="侦察1",addr=18},
       }
       for _,v in ipairs(cfg)do
           local r=AddressList:createMemoryRecord()
@@ -70,47 +67,65 @@ local function AddAddr(checkAdd)
       return
 end
 
-print("-----------START----------")
+local function HexSplit4(num)
+    local s = ("%X"):format(num)
+    local pad = (4 - #s % 4) % 4
+    s = string.rep("0", pad) .. s
+    return s:gsub("....","%1-"):sub(1,-2)
+end
+
 local sigDisabled = AsciiToUtf16LE("Disabled")
 -- Disabled特征： 44 00 69 00 73 00 61 00 62 00 6C 00 65 00 64 00
+
+pause()           --暂停游戏？？
 local listDisabled = AOBScan(sigDisabled,"+W-X")
+unpause()
 
 if listDisabled == nil or listDisabled.Count == 0 then
     print("未搜到任何Disabled")
-    return
+    goto EXIT
 end
 
-local find = false
 for i = 0, listDisabled.Count - 1 do
     local disabledAddr = tonumber(listDisabled[i],16)
     local baseAddr = disabledAddr -4
-    for j = 1, 10 do
+    for j = 1, 25 do
         local checkAdd = baseAddr + 8*3*2*j          --Supply Address
         local floatData0 = readFloat(checkAdd)
         local floatData1 = readFloat(checkAdd + 8*3*4)
         local floatData2 = readFloat(checkAdd + 8*3*14)
         local floatData3 = readFloat(checkAdd + 8*3*18)
-        if floatData0 == floatData1 and floatData2 == floatData3 and floatData0 &gt;1 and floatData2 &gt; 1 and floatData0 &lt;10000 and floatData2 &lt; 1000 then
-           print(string.format("Disabled地址:0x%X",disabledAddr))
-           print(string.format("数据:%f %f",floatData0,floatData1))
-           print(string.format("数据:%f %f",floatData2,floatData3))
+        if floatData0 == floatData1 and floatData2 == floatData3
+        and floatData0 &gt;1 and floatData2 &gt; 1
+        and floatData0 &lt;10000 and floatData2 &lt; 1000
+        and floatData0 ~= floatData2 then
+           print(string.format("地址: %s",HexSplit4(checkAdd)))
+           print(string.format("数据: %f %f",floatData0,floatData1))
+           print(string.format("地址: %s",HexSplit4(checkAdd + 8*3*14)))
+           print(string.format("数据: %f %f",floatData2,floatData3))
            AddAddr(checkAdd)
            find = true
-           print("----------FOUND---------")
-           break
+           print("=====找到数据，已添加地址。脚本停止。=====")
+           goto EXIT
         end
     end
-    if find == true then return end
 end
-print("======没有符合的地址====")
+print("-------NO-FOUND-------")
+::EXIT::
+listDisabled:destroy()
+
+--print("尚未进入游戏进程，等待5秒")
+--sleep(5000)
+--goto BEGIN
+
 --[[
 -----------START----------
-Disabled地址:0x1D058215524
-数据:700.000000 700.000000
-数据:45.000000 45.000000
-----------FOUND---------
+地址: 028C-D148-F2B0
+数据: 800.000000 800.000000
+地址: 028C-D148-F400
+数据: 25.000000 25.000000
+=====找到数据，已添加地址。脚本停止。=====
 ]]
-
 
 </LuaScript>
 </CheatTable>
