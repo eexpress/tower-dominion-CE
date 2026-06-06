@@ -4,44 +4,48 @@
     <CheatEntry>
       <ID>0</ID>
       <Description>"补给0"</Description>
+      <LastState Value="1000" RealAddress="21DCE02ADC0"/>
       <VariableType>Float</VariableType>
-      <Address>1E7A672B1F0</Address>
+      <Address>21DCE02ADC0</Address>
     </CheatEntry>
     <CheatEntry>
       <ID>1</ID>
       <Description>"补给1"</Description>
+      <LastState Value="1000" RealAddress="21DCE02AE20"/>
       <VariableType>Float</VariableType>
-      <Address>1E7A672B250</Address>
+      <Address>21DCE02AE20</Address>
     </CheatEntry>
     <CheatEntry>
       <ID>2</ID>
       <Description>"侦察0"</Description>
+      <LastState Value="974" RealAddress="21DCE02AF10"/>
       <VariableType>Float</VariableType>
-      <Address>1E7A672B340</Address>
+      <Address>21DCE02AF10</Address>
     </CheatEntry>
     <CheatEntry>
       <ID>3</ID>
       <Description>"侦察1"</Description>
+      <LastState Value="974" RealAddress="21DCE02AF70"/>
       <VariableType>Float</VariableType>
-      <Address>1E7A672B3A0</Address>
+      <Address>21DCE02AF70</Address>
     </CheatEntry>
     <CheatEntry>
       <ID>4</ID>
-      <Description>"【一键补满补给和侦察】"</Description>
+      <Description>"&lt;-点击这里，【一键补给=9999】"</Description>
       <VariableType>Float</VariableType>
       <Address>0x100</Address>
     </CheatEntry>
     <CheatEntry>
       <ID>5</ID>
-      <Description>"No description"</Description>
+      <Description>"&lt;-点击这里，【一键侦察=999】"</Description>
       <VariableType>Float</VariableType>
-      <Address>1E9CE02C5B0</Address>
+      <Address>0x100</Address>
     </CheatEntry>
     <CheatEntry>
       <ID>6</ID>
-      <Description>"No description"</Description>
+      <Description>"&lt;-点击这里，【一键补满补给+侦察】"</Description>
       <VariableType>Float</VariableType>
-      <Address>1E9CE02C610</Address>
+      <Address>0x100</Address>
     </CheatEntry>
   </CheatEntries>
   <UserdefinedSymbols/>
@@ -93,22 +97,40 @@ local function AddAddr(checkAdd)
           r.Type=4
       end
 --============================一键补给按钮新增开始============================
-      local btn = al:createMemoryRecord()
-      btn.Description = "【一键补满补给和侦察】"
-      btn.Address = "0x100"
-      btn.Type = 4
-      btn.OnActivate = function(self,before,newstate)
-          if before then
-              local base = checkAdd
-              writeFloat(base,9999.0)
-              writeFloat(base + 4*3*8,9999.0)
-              writeFloat(base + 14*3*8,999.0)
-              writeFloat(base + 18*3*8,999.0)
-              print("补给写入成功")
-              self.Active=false
-          end
-      end
---============================一键补给按钮新增结束============================     return
+local function SetAllData(mode,base)
+    if mode==1 or mode==3 then
+        writeFloat(base,9999.0)
+        writeFloat(base + 4*3*8,9999.0)
+    end
+    if mode==2 or mode==3 then
+        writeFloat(base + 14*3*8,999.0)
+        writeFloat(base + 18*3*8,999.0)
+    end
+end
+
+--按钮配置数组：{按钮备注,模式码}
+local btnCfg = {
+    {"【一键补给=9999】",1},
+    {"【一键侦察=999】",2},
+    {"【一键补满补给+侦察】",3}
+}
+
+--循环批量创建3个按钮
+for _,cfg in ipairs(btnCfg) do
+    local name,mode = cfg[1],cfg[2]
+    local btn = al:createMemoryRecord()
+    btn.Description = "&lt;-点击这里，"..name
+    btn.Address = "0x100"
+    btn.Type = 4
+    btn.OnActivate = function(self,before)
+        if before then
+            SetAllData(mode,checkAdd)
+            print(name.." 写入成功")
+            self.Active=false
+        end
+    end
+end
+--============================一键补给按钮新增结束============================
 end
 
 local function HexSplit4(num)
@@ -143,20 +165,21 @@ for i = 0, listDisabled.Count - 1 do
         local floatData1 = readFloat(checkAdd + 8*3*4)
         local floatData2 = readFloat(checkAdd + 8*3*14)
         local floatData3 = readFloat(checkAdd + 8*3*18)
-        if floatData0 == floatData1 and floatData2 == floatData3
-        and floatData0 &gt;1 and floatData2 &gt; 1
-        and floatData0 &lt;10000 and floatData2 &lt; 1000
-        and IsFloatInt(floatData0) and IsFloatInt(floatData2)
-        and floatData0 ~= floatData2 then
-           print(string.format("地址: %s",HexSplit4(checkAdd)))
-           print(string.format("数据: %f %f",floatData0,floatData1))
-           print(string.format("地址: %s",HexSplit4(checkAdd + 8*3*14)))
-           print(string.format("数据: %f %f",floatData2,floatData3))
-           AddAddr(checkAdd)
-           find = true
-           print("=====找到数据，已添加地址。脚本停止。=====")
-           goto EXIT
-        end
+        if floatData0 and floatData1 and floatData2 and floatData3 then
+          if floatData0 == floatData1 and floatData2 == floatData3
+          and floatData0 &gt; 1 and floatData2 &gt; 1
+          and floatData0 &lt;10000 and floatData2 &lt; 1000
+          and IsFloatInt(floatData0) and IsFloatInt(floatData2)
+          and floatData0 ~= floatData2 then
+             print(string.format("地址: %s",HexSplit4(checkAdd)))
+             print(string.format("数据: %f %f",floatData0,floatData1))
+             print(string.format("地址: %s",HexSplit4(checkAdd + 8*3*14)))
+             print(string.format("数据: %f %f",floatData2,floatData3))
+             AddAddr(checkAdd)
+             print("=====找到数据，已添加地址。脚本停止。=====")
+             goto EXIT
+          end
+      end
     end
 end
 print("-------NO-FOUND-------")
