@@ -4,46 +4,52 @@
     <CheatEntry>
       <ID>0</ID>
       <Description>"补给0"</Description>
-      <LastState Value="1000" RealAddress="21DCE02ADC0"/>
+      <LastState Value="10999" RealAddress="1F9CDCADAC0"/>
       <VariableType>Float</VariableType>
-      <Address>21DCE02ADC0</Address>
+      <Address>1F9CDCADAC0</Address>
     </CheatEntry>
     <CheatEntry>
       <ID>1</ID>
       <Description>"补给1"</Description>
-      <LastState Value="1000" RealAddress="21DCE02AE20"/>
+      <LastState Value="10999" RealAddress="1F9CDCADB20"/>
       <VariableType>Float</VariableType>
-      <Address>21DCE02AE20</Address>
+      <Address>1F9CDCADB20</Address>
     </CheatEntry>
     <CheatEntry>
       <ID>2</ID>
       <Description>"侦察0"</Description>
-      <LastState Value="974" RealAddress="21DCE02AF10"/>
+      <LastState Value="1199" RealAddress="1F9CDCADC10"/>
       <VariableType>Float</VariableType>
-      <Address>21DCE02AF10</Address>
+      <Address>1F9CDCADC10</Address>
     </CheatEntry>
     <CheatEntry>
       <ID>3</ID>
       <Description>"侦察1"</Description>
-      <LastState Value="974" RealAddress="21DCE02AF70"/>
+      <LastState Value="1199" RealAddress="1F9CDCADC70"/>
       <VariableType>Float</VariableType>
-      <Address>21DCE02AF70</Address>
+      <Address>1F9CDCADC70</Address>
     </CheatEntry>
     <CheatEntry>
       <ID>4</ID>
-      <Description>"&lt;-点击这里，【一键补给=9999】"</Description>
+      <Description>"&lt;-点击这里，【一键补给+1000】"</Description>
       <VariableType>Float</VariableType>
       <Address>0x100</Address>
     </CheatEntry>
     <CheatEntry>
       <ID>5</ID>
-      <Description>"&lt;-点击这里，【一键侦察=999】"</Description>
+      <Description>"&lt;-点击这里，【一键侦察+100】"</Description>
       <VariableType>Float</VariableType>
       <Address>0x100</Address>
     </CheatEntry>
     <CheatEntry>
       <ID>6</ID>
-      <Description>"&lt;-点击这里，【一键补满补给+侦察】"</Description>
+      <Description>"&lt;-点击这里，【一键补给+1000，侦察+100】"</Description>
+      <VariableType>Float</VariableType>
+      <Address>0x100</Address>
+    </CheatEntry>
+    <CheatEntry>
+      <ID>7</ID>
+      <Description>"&lt;-点击这里，【一键补给=9999，侦察=999】"</Description>
       <VariableType>Float</VariableType>
       <Address>0x100</Address>
     </CheatEntry>
@@ -62,6 +68,12 @@ if not pid then
 end
 -- 关联进程（没有关联就自动关联）
 if getOpenedProcessID()~=pid then openProcess(pid) end
+
+-- 偏移常量定义
+local OFFSET_SUPPLY0 = 0 * 3 * 8
+local OFFSET_SUPPLY1 = 4 * 3 * 8
+local OFFSET_SCOUT0  = 14 * 3 * 8
+local OFFSET_SCOUT1  = 18 * 3 * 8
 
 local function AsciiToUtf16LE(s)
 -- 参数：普通英文ASCII，返回 "44 00 69 00 ..." 小头Utf16LE格式字符串
@@ -84,42 +96,51 @@ local function AddAddr(checkAdd)
      local al = getAddressList()
      while al.Count &gt; 0 do al[0]:destroy() end
       --添加到CE地址列表，备注来源
-      local cfg={
-          {name="补给0",addr=0},
-          {name="补给1",addr=4},
-          {name="侦察0",addr=14},
-          {name="侦察1",addr=18},
-      }
+    local cfg={
+        {name="补给0",addr=OFFSET_SUPPLY0},
+        {name="补给1",addr=OFFSET_SUPPLY1},
+        {name="侦察0",addr=OFFSET_SCOUT0},
+        {name="侦察1",addr=OFFSET_SCOUT1},
+    }
       for _,v in ipairs(cfg)do
           local r=AddressList:createMemoryRecord()
           r.Description=v.name
-          r.Address=v.addr*3*8 + checkAdd
+          r.Address=v.addr + checkAdd
           r.Type=4
       end
 --============================一键补给按钮新增开始============================
 local function SetAllData(mode,base)
+    if mode==4 then
+        writeFloat(base + OFFSET_SUPPLY0,9999.0)
+        writeFloat(base + OFFSET_SUPPLY1,9999.0)
+    end
+    if mode==4 then
+        writeFloat(base + OFFSET_SCOUT0,999.0)
+        writeFloat(base + OFFSET_SCOUT1,999.0)
+    end
     if mode==1 or mode==3 then
-        writeFloat(base,9999.0)
-        writeFloat(base + 4*3*8,9999.0)
+        writeFloat(base + OFFSET_SUPPLY0,readFloat(base + OFFSET_SUPPLY0)+1000)
+        writeFloat(base + OFFSET_SUPPLY1,readFloat(base + OFFSET_SUPPLY1)+1000)
     end
     if mode==2 or mode==3 then
-        writeFloat(base + 14*3*8,999.0)
-        writeFloat(base + 18*3*8,999.0)
+        writeFloat(base + OFFSET_SCOUT0,readFloat(base + OFFSET_SCOUT0)+100)
+        writeFloat(base + OFFSET_SCOUT1,readFloat(base + OFFSET_SCOUT1)+100)
     end
 end
 
 --按钮配置数组：{按钮备注,模式码}
 local btnCfg = {
-    {"【一键补给=9999】",1},
-    {"【一键侦察=999】",2},
-    {"【一键补满补给+侦察】",3}
+    {"补给+1000",1},
+    {"侦察+100",2},
+    {"补给+1000，侦察+100",3},
+    {"补给=9999，侦察=999",4}
 }
 
 --循环批量创建3个按钮
 for _,cfg in ipairs(btnCfg) do
     local name,mode = cfg[1],cfg[2]
     local btn = al:createMemoryRecord()
-    btn.Description = "&lt;-点击这里，"..name
+    btn.Description = "&lt;-点击这里，【一键"..name.."】"
     btn.Address = "0x100"
     btn.Type = 4
     btn.OnActivate = function(self,before)
@@ -159,21 +180,21 @@ end
 for i = 0, listDisabled.Count - 1 do
     local disabledAddr = tonumber(listDisabled[i],16)
     local baseAddr = disabledAddr -4
-    for j = 1, 25 do
+    for j = -12, 25 do
         local checkAdd = baseAddr + 8*3*2*j          --Supply Address
-        local floatData0 = readFloat(checkAdd)
-        local floatData1 = readFloat(checkAdd + 8*3*4)
-        local floatData2 = readFloat(checkAdd + 8*3*14)
-        local floatData3 = readFloat(checkAdd + 8*3*18)
+        local floatData0 = readFloat(checkAdd + OFFSET_SUPPLY0)
+        local floatData1 = readFloat(checkAdd + OFFSET_SUPPLY1)
+        local floatData2 = readFloat(checkAdd + OFFSET_SCOUT0)
+        local floatData3 = readFloat(checkAdd + OFFSET_SCOUT1)
         if floatData0 and floatData1 and floatData2 and floatData3 then
           if floatData0 == floatData1 and floatData2 == floatData3
           and floatData0 &gt; 1 and floatData2 &gt; 1
           and floatData0 &lt;10000 and floatData2 &lt; 1000
           and IsFloatInt(floatData0) and IsFloatInt(floatData2)
           and floatData0 ~= floatData2 then
-             print(string.format("地址: %s",HexSplit4(checkAdd)))
+             print(string.format("地址: %s",HexSplit4(checkAdd + OFFSET_SUPPLY0)))
              print(string.format("数据: %f %f",floatData0,floatData1))
-             print(string.format("地址: %s",HexSplit4(checkAdd + 8*3*14)))
+             print(string.format("地址: %s",HexSplit4(checkAdd + OFFSET_SCOUT0)))
              print(string.format("数据: %f %f",floatData2,floatData3))
              AddAddr(checkAdd)
              print("=====找到数据，已添加地址。脚本停止。=====")
